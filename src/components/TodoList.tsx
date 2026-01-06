@@ -182,7 +182,7 @@ export function TodoList() {
           {/* Add Todo */}
           <form onSubmit={addTodo}>
             <motion.div
-              whileFocusWithin={{ scale: 1.02 }}
+              
               className="relative"
             >
               <input
