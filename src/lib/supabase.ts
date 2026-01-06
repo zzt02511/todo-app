@@ -65,7 +65,7 @@ export function rowToTodo(row: TodoRow): Todo {
   };
 }
 
-export function todoToRow(todo: Todo): Omit<TodoRow, 'id' | 'created_at'> {
+export function todoToRow(todo: Todo): Omit<TodoRow, 'id'> {
   return {
     content: todo.content,
     completed: todo.completed,
