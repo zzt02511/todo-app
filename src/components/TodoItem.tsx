@@ -35,7 +35,7 @@ export function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoItemProps) 
     }
   };
 
-  const isOverdue = todo.dueDate && !todo.completed && new Date(todo.dueDate) < new Date().setHours(0, 0, 0, 0);
+  const isOverdue = todo.dueDate && !todo.completed && new Date(todo.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
 
   return (
     <AnimatePresence mode="wait">
