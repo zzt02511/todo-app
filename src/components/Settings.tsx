@@ -11,7 +11,10 @@ import {
   isSupabaseConfigured,
   getSupabaseClient,
   syncConfigToDatabase,
+  fetchConfigFromDatabase,
+  SupabaseConfig,
 } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { cn } from '@/lib/utils';
 
 interface SettingsProps {
@@ -27,8 +30,25 @@ export function Settings({ onClose, onConfigChange }: SettingsProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // 打开时尝试从数据库加载配置到输入框
   useEffect(() => {
-    setIsConnected(isSupabaseConfigured());
+    const initConfig = async () => {
+      // 1. 先从 localStorage 读取
+      const localUrl = getSupabaseUrl();
+      const localKey = getSupabaseAnonKey();
+
+      if (localUrl && localKey) {
+        setUrl(localUrl);
+        setAnonKey(localKey);
+        setIsConnected(true);
+        return;
+      }
+
+      // 2. localStorage 为空
+      // 如果用户之前保存过配置在数据库里，可以在输入后点击"恢复配置"来加载
+      setIsConnected(false);
+    };
+    initConfig();
   }, []);
 
   const handleSave = async () => {
@@ -92,6 +112,42 @@ export function Settings({ onClose, onConfigChange }: SettingsProps) {
       }
     } catch (err) {
       setError('连接异常，请检查配置是否正确');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  // 从数据库恢复已保存的配置
+  const handleRestoreFromDatabase = async () => {
+    if (!url.trim() || !anonKey.trim()) {
+      setError('请先填写 Supabase 配置来连接数据库');
+      return;
+    }
+
+    setIsChecking(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      // 使用当前输入的配置创建临时客户端
+      const tempClient = createClient(url.trim(), anonKey.trim());
+
+      // 尝试从数据库读取已保存的配置
+      const config = await fetchConfigFromDatabase(tempClient);
+
+      if (config && config.url && config.anonKey) {
+        // 找到已保存的配置，更新输入框并保存到 localStorage
+        setUrl(config.url);
+        setAnonKey(config.anonKey);
+        saveSupabaseConfig(config);
+        setIsConnected(true);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        setError('数据库中未找到已保存的配置');
+      }
+    } catch (err) {
+      setError('恢复配置失败，请检查数据库连接');
     } finally {
       setIsChecking(false);
     }
@@ -207,13 +263,28 @@ export function Settings({ onClose, onConfigChange }: SettingsProps) {
                 className="flex items-center gap-2 p-3 bg-green-50 text-green-600 rounded-xl text-sm"
               >
                 <Check className="w-4 h-4" />
-                连接成功！
+                配置已恢复！
               </motion.div>
             )}
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+            {/* 未连接时显示恢复配置按钮 */}
+            {!isConnected && (
+              <button
+                onClick={handleRestoreFromDatabase}
+                disabled={isChecking || !url.trim() || !anonKey.trim()}
+                className={cn(
+                  'px-4 py-2 text-sm rounded-xl transition-all duration-200',
+                  isChecking || !url.trim() || !anonKey.trim()
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                )}
+              >
+                {isChecking ? '恢复中...' : '恢复数据库配置'}
+              </button>
+            )}
             {isConnected && (
               <button
                 onClick={handleClear}

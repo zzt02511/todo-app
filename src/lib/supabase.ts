@@ -131,6 +131,36 @@ export async function loadConfigFromDatabase(): Promise<boolean> {
 }
 
 /**
+ * 从数据库获取配置（不依赖 localStorage）
+ * 外部传入 Supabase 客户端，返回配置对象或 null
+ */
+export async function fetchConfigFromDatabase(
+  client: ReturnType<typeof createClient>
+): Promise<SupabaseConfig | null> {
+  try {
+    const { data, error } = await client
+      .from('app_config')
+      .select('config_value')
+      .eq('id', 'app_config')
+      .single() as { data: AppConfigRow | null; error: Error | null };
+
+    if (error || !data) {
+      return null;
+    }
+
+    const config = JSON.parse(data.config_value);
+    if (config.url && config.anonKey) {
+      return config;
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Failed to fetch config from database:', err);
+    return null;
+  }
+}
+
+/**
  * 检查数据库中是否有配置
  */
 export async function hasConfigInDatabase(): Promise<boolean> {
