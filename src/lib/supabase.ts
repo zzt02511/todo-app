@@ -14,18 +14,44 @@ export interface AppConfigRow {
   updated_at: string;
 }
 
-// ============ 配置存储策略 ============
-// 优先级：localStorage > 数据库
-// 先尝试从数据库读取，失败则降级到 localStorage
+// ============ 配置策略 ============
+// 配置从数据库读取，环境变量作为初始连接
+// 所有用户共享同一个数据库配置
+
+// 从环境变量获取初始配置
+function getInitialConfig(): SupabaseConfig {
+  if (typeof window === 'undefined') {
+    return { url: '', anonKey: '' };
+  }
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  };
+}
+
+// 从 localStorage 获取配置
+function getLocalConfig(): SupabaseConfig {
+  if (typeof window === 'undefined') return { url: '', anonKey: '' };
+  return {
+    url: localStorage.getItem('supabase_url') || '',
+    anonKey: localStorage.getItem('supabase_anon_key') || '',
+  };
+}
 
 export function getSupabaseUrl(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('supabase_url') || '';
+  const local = getLocalConfig();
+  if (local.url && local.anonKey) return local.url;
+
+  const initial = getInitialConfig();
+  return initial.url;
 }
 
 export function getSupabaseAnonKey(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('supabase_anon_key') || '';
+  const local = getLocalConfig();
+  if (local.url && local.anonKey) return local.anonKey;
+
+  const initial = getInitialConfig();
+  return initial.anonKey;
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -46,10 +72,9 @@ export function getSupabaseClient() {
 }
 
 /**
- * 初始化 Supabase 客户端（从 localStorage 或默认环境变量）
+ * 获取初始客户端（用于首次连接数据库读取配置）
  */
 function getInitClient(): ReturnType<typeof createClient> | null {
-  // 优先使用 localStorage 中的配置
   const url = getSupabaseUrl();
   const anonKey = getSupabaseAnonKey();
 

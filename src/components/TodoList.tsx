@@ -9,7 +9,7 @@ import { Todo, FilterType } from '@/lib/types';
 import { TodoItem } from './TodoItem';
 import { Settings } from './Settings';
 import { Plus, Search, ListTodo, Trash2, Calendar, X, Database } from 'lucide-react';
-import { isSupabaseConfigured, fetchTodos, saveTodo, deleteTodoById, deleteTodosByIds, loadConfigFromDatabase } from '@/lib/supabase';
+import { isSupabaseConfigured, fetchTodos, saveTodo, deleteTodoById, deleteTodosByIds } from '@/lib/supabase';
 
 export function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -23,15 +23,10 @@ export function TodoList() {
   const [isLoading, setIsLoading] = useState(true);
   const [parent] = useAutoAnimate();
 
-  // 启动时先尝试从数据库加载配置，然后加载数据
+  // 启动时加载数据
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-
-      // 1. 优先从数据库加载配置
-      await loadConfigFromDatabase();
-
-      // 2. 然后加载 todos
       const data = await fetchTodos();
       setTodos(data);
       setIsLoading(false);
