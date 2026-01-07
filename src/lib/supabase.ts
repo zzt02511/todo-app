@@ -6,6 +6,18 @@ export interface SupabaseConfig {
   anonKey: string;
 }
 
+export interface AppConfigRow {
+  id: string;
+  config_key: string;
+  config_value: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============ 配置存储策略 ============
+// 优先级：localStorage > 数据库
+// 先尝试从数据库读取，失败则降级到 localStorage
+
 export function getSupabaseUrl(): string {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem('supabase_url') || '';
@@ -31,6 +43,111 @@ export function getSupabaseClient() {
   }
 
   return createClient(url, anonKey);
+}
+
+/**
+ * 初始化 Supabase 客户端（从 localStorage 或默认环境变量）
+ */
+function getInitClient(): ReturnType<typeof createClient> | null {
+  // 优先使用 localStorage 中的配置
+  const url = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
+
+  if (url && anonKey) {
+    return createClient(url, anonKey);
+  }
+
+  return null;
+}
+
+/**
+ * 同步配置到数据库（保存连接后调用）
+ */
+export async function syncConfigToDatabase(): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  const url = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
+
+  if (!url || !anonKey) return false;
+
+  try {
+    // 使用 upsert 保存配置（只有一条记录，id 为 'app_config'）
+    const { error } = await client
+      .from('app_config')
+      .upsert({
+        id: 'app_config',
+        config_key: 'supabase_config',
+        config_value: JSON.stringify({ url, anonKey }),
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'id'
+      });
+
+    if (error) {
+      console.error('Failed to sync config to database:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Failed to sync config to database:', err);
+    return false;
+  }
+}
+
+/**
+ * 从数据库加载配置（启动时调用）
+ * 返回是否成功从数据库加载了配置
+ */
+export async function loadConfigFromDatabase(): Promise<boolean> {
+  const client = getInitClient();
+  if (!client) return false;
+
+  try {
+    const { data, error } = await client
+      .from('app_config')
+      .select('config_value')
+      .eq('id', 'app_config')
+      .single();
+
+    if (error || !data) {
+      return false;
+    }
+
+    const config = JSON.parse(data.config_value);
+    if (config.url && config.anonKey) {
+      // 保存到 localStorage 以便后续使用
+      saveSupabaseConfig(config);
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error('Failed to load config from database:', err);
+    return false;
+  }
+}
+
+/**
+ * 检查数据库中是否有配置
+ */
+export async function hasConfigInDatabase(): Promise<boolean> {
+  const client = getInitClient();
+  if (!client) return false;
+
+  try {
+    const { data, error } = await client
+      .from('app_config')
+      .select('id')
+      .eq('id', 'app_config')
+      .single();
+
+    return !error && !!data;
+  } catch {
+    return false;
+  }
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig) {

@@ -10,6 +10,7 @@ import {
   getSupabaseAnonKey,
   isSupabaseConfigured,
   getSupabaseClient,
+  syncConfigToDatabase,
 } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +41,12 @@ export function Settings({ onClose, onConfigChange }: SettingsProps) {
     setError('');
 
     try {
+      // 先保存到 localStorage
       saveSupabaseConfig({ url: url.trim(), anonKey: anonKey.trim() });
+
+      // 尝试同步到数据库（如果表存在）
+      await syncConfigToDatabase();
+
       onConfigChange();
       setIsConnected(true);
       setSuccess(true);
