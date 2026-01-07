@@ -44,8 +44,8 @@ export function Settings({ onClose, onConfigChange }: SettingsProps) {
         return;
       }
 
-      // 2. localStorage 为空
-      // 如果用户之前保存过配置在数据库里，可以在输入后点击"恢复配置"来加载
+      // 2. localStorage 为空，状态为未连接
+      // 用户需要输入配置才能从数据库恢复已保存的设置
       setIsConnected(false);
     };
     initConfig();
