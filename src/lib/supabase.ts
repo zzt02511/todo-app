@@ -110,7 +110,7 @@ export async function loadConfigFromDatabase(): Promise<boolean> {
       .from('app_config')
       .select('config_value')
       .eq('id', 'app_config')
-      .single();
+      .single() as { data: AppConfigRow | null; error: Error | null };
 
     if (error || !data) {
       return false;
@@ -142,7 +142,7 @@ export async function hasConfigInDatabase(): Promise<boolean> {
       .from('app_config')
       .select('id')
       .eq('id', 'app_config')
-      .single();
+      .single() as { data: AppConfigRow | null; error: Error | null };
 
     return !error && !!data;
   } catch {
